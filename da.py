@@ -11,6 +11,9 @@ ARCH_MOVE = ('winrar', 'm', '-afzip', '-r', '-ibck', '-y')
 def arch_move_cmd(name, arch_file_name=None):
     if not arch_file_name:
         arch_file_name = name
+    if not arch_file_name.endswith('.zip'):
+        arch_file_name += '.zip'  #avoid some errors when winrar 
+                                  #processes filenames with no ext name.
     cmd = []
     cmd.extend(ARCH_MOVE)
     cmd.append(arch_file_name)
