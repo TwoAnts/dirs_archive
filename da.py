@@ -3,10 +3,14 @@
 
 
 import os
+import re
 import sys
+import shutil
 import subprocess as sp
 
-ARCH_MOVE = ('winrar', 'm', '-afzip', '-r', '-ibck', '-y')
+ARCH_MOVE = ('winrar', 'm', '-ep1', '-afzip', '-r', '-ibck', '-y')
+
+SSUB_PATTERN = re.compile(r'##?\S+#?#')
 
 def arch_move_cmd(name, arch_file_name=None):
     if not arch_file_name:
@@ -19,40 +23,74 @@ def arch_move_cmd(name, arch_file_name=None):
     cmd.append(arch_file_name)
     cmd.append(name)
     return cmd
+    
+def subs_arch(src, dst, src_name):
+    count = 0
+    failed = 0
+    print('in %s:' %src)
+    dst_parent = os.path.join(dst, src_name)
+    if not os.path.exists(dst_parent):
+        print('\tmkdir %s' %dst_parent)
+        os.mkdir(dst_parent)
+    os.chdir(dst_parent)
+    print('\tdst: %s' %dst_parent)
+    for child_de in os.scandir(src):
+        if child_de.is_dir():
+            if SSUB_PATTERN.search(child_de.name):
+                tmp_count, tmp_failed = subs_arch(child_de.path, dst_parent, child_de.name)
+                count += tmp_count
+                failed += tmp_failed
+                continue
+            print('\tarchive %s ' %child_de.name)
+            cp = sp.run(arch_move_cmd(child_de.path, child_de.name))
+            count += 1
+            if cp.returncode != 0:
+                failed += 1
+                print('\tFailed! %s' %cp.returncode)
+        elif src != dst_parent:
+            print('\tmove %s' %child_de.path)
+            shutil.move(child_de.path, '.')
+    os.chdir('..')
+    return count, failed
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print('Usage:\n\t%s <work_dir>' %sys.argv[0])
+    if len(sys.argv) not in (2, 3):
+        print('Usage:\n\t%s <src_dir> <dst_dir>' %sys.argv[0])
         exit()
-    work_dir = sys.argv[1]
+    src_dir = sys.argv[1]
+    dst_dir = sys.argv[2] if len(sys.argv) == 3 else src_dir
+    
+    src_dir = os.path.abspath(src_dir)
+    dst_dir = os.path.abspath(dst_dir)
     
     count = 0
     failed = 0
-    os.chdir(work_dir)
+    os.chdir(src_dir)
     
-    for de in os.scandir('.'):
+    for de in os.scandir(src_dir):
         if de.is_dir():
             print(de.name)
     
-    m = input('Above dirs is in %s, continued?(y/n):' %work_dir)
+    m = input('Above dirs is in %s move to %s, continued?(y/n):' %(src_dir, dst_dir))
     
     if m.lower() != 'y':
         print('Cancel!')
         exit()
         
-    for de in os.scandir('.'):
+    if not os.path.isdir(dst_dir):
+        print('mkdir %s' %dst_dir)
+        os.mkdir(dst_dir)
+    if not os.path.isdir(dst_dir):
+        print('mkdir %s failed!' %dst_dir)
+        exit(-1)
+        
+    for de in os.scandir(src_dir):
         if de.is_dir():
-            print('in %s:' %de.path)
-            os.chdir(de.path)
-            for child_de in os.scandir('.'):
-                if child_de.is_dir():
-                    print('\tarchive %s' %child_de.name)
-                    cp = sp.run(arch_move_cmd(child_de.name))
-                    count += 1
-                    if cp.returncode != 0:
-                        failed += 1
-                        print('\tFailed! %s' %cp.returncode)
-            os.chdir('..')
+            tmp_count, tmp_failed = subs_arch(de.path, dst_dir, de.name)
+            count += tmp_count
+            failed += tmp_failed
+        else: 
+            print('skip %s' %de.path)
     
     print('Done, archive %s(%s failed) dirs.' %(count, failed))
     
