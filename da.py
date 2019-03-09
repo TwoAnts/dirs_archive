@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import shutil
+import mimetypes
 import subprocess as sp
 
 ARCH_MOVE = ('winrar', 'm', '-ep1', '-afzip', '-r', '-ibck', '-y')
@@ -24,6 +25,20 @@ def arch_move_cmd(name, arch_file_name=None):
     cmd.append(name)
     return cmd
     
+def check_img_content(dir):
+    img_cnt = 0
+    cnt = 0
+    for de in os.scandir(dir):
+        cnt += 1
+        if de.is_dir():
+            continue
+        mt = mimetypes.guess_type(de.name)[0]
+        if mt and 'image' in mt:
+            img_cnt += 1
+    if cnt == 0:
+        return False
+    return (img_cnt / cnt > 0.5)
+            
 def subs_arch(src, dst, src_name):
     count = 0
     failed = 0
@@ -41,6 +56,13 @@ def subs_arch(src, dst, src_name):
                 count += tmp_count
                 failed += tmp_failed
                 continue
+            
+            #if not check_img_content(child_de.path):
+            #    for d in os.scandir(child_de.path):
+            #        print('\tmove %s' %d.path)
+            #        shutil.move(d.path, '.')
+            #    continue
+                    
             print('\tarchive %s ' %child_de.name)
             cp = sp.run(arch_move_cmd(child_de.path, child_de.name))
             count += 1
