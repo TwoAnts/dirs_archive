@@ -71,7 +71,10 @@ def subs_arch(src, dst, src_name):
                 print('\tFailed! %s' %cp.returncode)
         elif src != dst_parent:
             print('\tmove %s' %child_de.path)
-            shutil.move(child_de.path, '.')
+            try:
+                shutil.move(child_de.path, '.')
+            except Exception as e:
+                print(e)
     os.chdir('..')
     return count, failed
 
