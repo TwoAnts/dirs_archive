@@ -174,7 +174,7 @@ if __name__ == '__main__':
     src_dir = os.path.abspath(src_dir)
     dst_dir = os.path.abspath(dst_dir)
     
-    if src_dir == os.path.commonpath((src_dir, dst_dir)):
+    if dst_dir.startswith(src_dir) and src_dir == os.path.commonpath((src_dir, dst_dir)):
         print('Error: dst_dir is inside src_dir or same with src_dir. \nsrc_dir:%s\ndst_dir:%s'
                 %(src_dir, dst_dir))
         exit()
