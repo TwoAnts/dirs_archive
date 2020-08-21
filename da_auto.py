@@ -31,6 +31,10 @@ class DaContext:
     def __init__(self, src_root_dir, dst_root_dir):
         self.src_root_dir = src_root_dir
         self.dst_root_dir = dst_root_dir
+        self.err_file = open('err.txt', 'w', encoding='utf-8')
+        
+    def fin(self):
+        self.err_file.close()
 
 ARCH_MOVE = ('winrar', 'm', '-ep1', '-afzip', '-r', '-ibck', '-y')
 
@@ -153,6 +157,7 @@ def execute_action_deque(ctx, actions):
         if RETURN_OK != ret:
             fail_cnt += 1
             print('\tFailed: %s %s %s' %(ret, action.type.name, action.src_path))
+            ctx.err_file.write('Failed: %s %s %s\n' %(ret, action.type.name, action.src_path))
         else:
             if action.type is ActionType.DIRECT_MOVE:
                 move_cnt += 1
@@ -192,8 +197,9 @@ if __name__ == '__main__':
     
     if m.lower() != 'y':
         print('Cancel!')
+        ctx.fin()
         exit()
-        
+    
     actions = deque()
     actions.extend(action_list)
         
@@ -201,3 +207,6 @@ if __name__ == '__main__':
     
     print('Done, arch %s, move %s, fail %s.' %(arch_cnt, move_cnt, fail_cnt))
     
+    ctx.err_file.write('Done, arch %s, move %s, fail %s.\n' %(arch_cnt, move_cnt, fail_cnt))
+    
+    ctx.fin()
