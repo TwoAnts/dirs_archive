@@ -18,6 +18,7 @@ class ActionType(enum.Enum):
     NO_OP = 0
     DIRECT_MOVE = enum.auto()
     ARCH_MOVE = enum.auto()
+    CONV_7Z_MOVE = enum.auto()
     RECUR_SCAN = enum.auto()
     
 class Action:
@@ -38,6 +39,8 @@ class DaContext:
 
 ARCH_MOVE = ('winrar', 'm', '-ep1', '-afzip', '-r', '-ibck', '-y')
 
+CONV_7Z = ('winrar', 'cv', '-afzip', '-ibck', '-y')
+
 def no_op_func(*args, **kwargs):
     return RETURN_OK
 
@@ -51,6 +54,12 @@ def arch_move_cmd(name, arch_file_name=None):
     cmd.extend(ARCH_MOVE)
     cmd.append(arch_file_name)
     cmd.append(name)
+    return cmd
+    
+def conv_7z_cmd(file_name):
+    cmd = []
+    cmd.extend(CONV_7Z)
+    cmd.append(file_name)
     return cmd
     
 def direct_move(src_path, dst_path):
@@ -67,6 +76,26 @@ def arch_move(src_path, src_name, dst_dir_path):
     cp = sp.run(arch_move_cmd(src_path, src_name))
     os.chdir(cwd)
     return cp.returncode
+    
+def conv_7z_move(src_path, dst_dir_path):
+    conv_src_path = src_path[:-2] + 'zip'
+    
+    cp = sp.run(conv_7z_cmd(src_path))
+    if RETURN_OK != cp.returncode:
+        print('\t\tconvert %s failed. ret(%d)' %(src_path, cp.returncode))
+        return cp.returncode
+    
+    if not os.path.isfile(conv_src_path):
+        print('\t\tconvert result file %s not exist. ' %conv_src_path)
+        return RETURN_ERR
+    
+    print('\t\tremove after convert: %s' %src_path)
+    os.remove(src_path)
+    
+    print('\t\tmove %s to %s' %(conv_src_path, dst_dir_path))
+    ret = direct_move(conv_src_path, dst_dir_path)
+    
+    return ret
 
 def check_img_content(dir):
     img_cnt = 0
@@ -105,6 +134,10 @@ def scan_and_gen_actions(ctx, src_dir, action_list=None):
                 action = Action(ActionType.RECUR_SCAN, 
                                 de.path,
                                 (ctx, de.path))
+        elif de.name.lower().endswith('.7z'):
+            action = Action(ActionType.CONV_7Z_MOVE,
+                            de.path,
+                            (de.path, dst_dir))
         else:
             action = Action(ActionType.DIRECT_MOVE, 
                             de.path,
@@ -119,6 +152,7 @@ ACTION_FUNC_MAP = {
     ActionType.NO_OP : no_op_func,
     ActionType.DIRECT_MOVE : direct_move,
     ActionType.ARCH_MOVE : arch_move,
+    ActionType.CONV_7Z_MOVE : conv_7z_move,
     ActionType.RECUR_SCAN : scan_and_gen_actions,
 }
 
